@@ -1,11 +1,8 @@
 #!/bin/bash
-dest_net="192.168.2.0/24"
-num_ips=2
-dev="eth1"
 
 help_text() {
-    echo "Usage: ./flow_splitter.sh interface dest_net start_ip/cidr end_ip"
-    echo "For example: ./flow_splitter eth1 10.10.0.0/24 192.168.1.5/16 192.168.150.255"
+    echo "Usage: ./flow_splitter.sh dist_iface out_iface dest_net start_ip/cidr end_ip"
+    echo "For example: ./flow_splitter eth1 eth2 10.10.0.0/24 192.168.1.5/16 192.168.150.255"
     return 1
 }
 
@@ -14,23 +11,28 @@ parse_arguments() {
         help_text
         exit
     fi
-    dev="$1"
+    dist_dev="$1"
     if [ "$2" == "" ]; then
         help_text
         exit
     fi
-    dest_net="$2"
+    out_dev="$2"
     if [ "$3" == "" ]; then
         help_text
         exit
     fi
-    start_ip=$(echo "$3" | cut -d '/' -f 1)
-    netmask=$(echo "$3" | cut -d '/' -f 2)
+    dest_net="$3"
     if [ "$4" == "" ]; then
         help_text
         exit
     fi
-    end_ip="$4"
+    start_ip=$(echo "$4" | cut -d '/' -f 1)
+    netmask=$(echo "$4" | cut -d '/' -f 2)
+    if [ "$5" == "" ]; then
+        help_text
+        exit
+    fi
+    end_ip="$5"
 }
 
 increment_ip() {
@@ -58,18 +60,18 @@ enable_ip_fowarding() {
 }
 
 claim_ips() {
-    ip address flush $dev
-    ip link set dev $dev up
+    ip address flush $dist_dev
+    ip link set dev $dist_dev up
     
     ip="$start_ip"
     while [[ "$end_ip" > "$ip" || "$end_ip" == "$ip" ]]; do
-        ip address add $ip/$netmask dev $dev
+        ip address add $ip/$netmask dev $dist_dev
         increment_ip $ip
     done
 }
 
 setup_snat() {
-    shared_opts="-t nat -I POSTROUTING 1 -o $dev -p tcp -d $dest_net -m state --state NEW -m statistic --mode nth"
+    shared_opts="-t nat -I POSTROUTING 1 -o $dist_dev -p tcp -d $dest_net -m state --state NEW -m statistic --mode nth"
     iptables -t nat -F 
   
     every=1
@@ -80,6 +82,7 @@ setup_snat() {
         increment_ip $ip
         every=$(($every + 1))
     done
+    iptables -t nat -A POSTROUTING -o $out_dev -j MASQUERADE
 }
 
 parse_arguments $@
