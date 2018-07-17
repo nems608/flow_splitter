@@ -9,6 +9,7 @@ Just run the script to set up the system as a router. You must set the incoming 
 Usage: `./flow_splitter.sh dist_iface out_iface dest_net/cidr start_ip/cidr end_ip`
 
 `dist_iface`: This is the outgoing interface for all distributed traffic.
+
 `out_iface`: This is the outgoing interface for all non-distributed traffic (e.g. google.com).
 
 `dest_net/cidr`: SNATing rules will only apply to traffic bound to this network.
